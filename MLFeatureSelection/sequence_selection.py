@@ -12,18 +12,7 @@ from collections import OrderedDict
 import random
 import time
 import numpy as np
-from sklearn.model_selection import KFold
 import sys
-
-def DefaultValidation(X, y, features, clf, lossfunction, fit_params=None):
-    totaltest = []
-    kf = KFold(5)
-    for train_index, test_index in kf.split(X):
-        X_train, X_test = X.ix[train_index,:][features], X.ix[test_index,:][features]
-        y_train, y_test = y.ix[train_index,:].Label, y.ix[test_index,:].Label
-        clf.fit(X_train, y_train, **fit_params)
-        totaltest.append(lossfunction(y_test, clf.predict_proba(X_test)[:,1]))
-    return np.mean(totaltest)
 
 def _reachlimit(func):
     def wrapper(c):
@@ -61,8 +50,6 @@ class _LRS_SA_RGSS_combination(object):
         self.Process = Process
         self._direction = direction
         self._validatefunction = validatefunction
-        if self._validatefunction == 0:
-            self._validatefunction = DefaultValidation # DefaultValidation is 5-fold
         self._coherenceThreshold = CoherenceThreshold
         self._TimeLimitation = TimeLimitation * 60
         self._FeaturesQuanLimitation = FeaturesQuanLimitation
@@ -112,10 +99,10 @@ class _LRS_SA_RGSS_combination(object):
             print('random select starts with:\n {0}\n score: {1}'.format(self._bestfeature,
                                                                          self._greedyscore))
             # random selection
-            if len(self.Process[1])==2:
-                self._MyRandom(self.Process[1])
-            elif self.Process[1]==True:
+            if type(self.Process[1]) == str and self.Process[1] == True:
                 self._MyRandom()
+            elif type(self.Process[1]) == list and len(self.Process[1])==2:
+                self._MyRandom(self.Process[1])
 
             if self.Process[2] & (self._first == 1): # avoid cross term twice until it is fix
                 if 1: #self._greedyscore == self._score:
@@ -168,7 +155,7 @@ class _LRS_SA_RGSS_combination(object):
             tempdf = self._df
         #X, y = self._df, self._df[self._Label]
         X, y = tempdf, tempdf[self._Label]
-        totaltest = self._validatefunction(X, y, selectcol,
+        totaltest, x = self._validatefunction(X, y, selectcol,
                                            self._clf, self._LossFunction) #, self._fit_params)
         print('Mean loss: {}'.format(totaltest))
         # only when the score improve, the program will record,
@@ -297,7 +284,8 @@ class _LRS_SA_RGSS_combination(object):
                         Effective.append(newcolname)
                     else:
                         self._df.drop(newcolname, axis = 1, inplace=True)
-        Effective.remove(self.remain)
+        if self.remain in Effective:
+            Effective.remove(self.remain)
 #        for rm in Effective:
 #             self._df.drop(rm, axis = 1, inplace=True)
         self._columnname.append(self.remain)
@@ -499,11 +487,8 @@ class Select(object):
                                     SampleState = self._samplestate,
                                     SampleMode = self._samplemode
                                     )
-        try:
-            best_feature_comb = a.select()
-        except:
-           best_feature_comb = a._bestfeature
-        finally:
-            with open(self._logfile, 'a') as f:
-                f.write('\n{}\n{}\n%{}%\n'.format('Done',self._temp,'-'*60))
+        best_feature_comb = a.select()
+        #best_feature_comb = a._bestfeature
+        with open(self._logfile, 'a') as f:
+            f.write('\n{}\n{}\n%{}%\n'.format('Done',self._temp,'-'*60))
         return best_feature_comb

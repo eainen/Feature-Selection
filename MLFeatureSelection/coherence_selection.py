@@ -116,14 +116,18 @@ class _coherence_selection(object):
         selectcol = list(OrderedDict.fromkeys(selectcol))
         tempdf = self._df
         X, y = tempdf, tempdf[self._Label]
-        totaltest = self._validatefunction(X, y, selectcol, self._clf, self._LossFunction) #, self._fit_params)
+        totaltest, self._clf = self._validatefunction(X, y, selectcol, self._clf, self._LossFunction) #, self._fit_params)
         print('remove features: {}'.format(rmfeature))
         print('Mean loss: {}'.format(totaltest))
         if self._ScoreUpdate():
             with open(self._RecordFolder, 'a') as f: #record all the imporved combination
                 f.write('{0}  {1}:\n{2}\t{3}\n'.format(num, rmfeature,
                                                             np.round(np.mean(totaltest),6),
-                                                            selectcol[:], '*-' * 50))
+                                                            selectcol[:]))
+                f.write('*{}\n'.format(np.round(np.mean(totaltest),6)))
+                for s in selectcol[:]:
+                    f.write('{} '.format(s))
+                f.write('\n')
             self._TemplUsedFeatures, self._score = selectcol[:], np.mean(totaltest)
 
     def _removediag(self,df):
@@ -274,11 +278,8 @@ class Select(object):
                                     direction = self._direction,
                                     validatefunction = validate,
                                     )
-        try:
-            best_features_comb = a.select()
-        except:
-            best_features_comb = a._bestfeature
-        finally:
-            with open(self._logfile, 'a') as f:
-                f.write('\n{}\n{}\n%{}%\n'.format('Done',self._temp,'-'*60))
+        best_features_comb = a.select()
+        best_features_comb = a._bestfeature
+        with open(self._logfile, 'a') as f:
+            f.write('\n{}\n{}\n%{}%\n'.format('Done',self._temp,'-'*60))
         return best_features_comb
